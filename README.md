@@ -63,5 +63,15 @@
 
 ## License
 
-配方数据部分来自 FactorioLab，遵循 MIT License。
-游戏名称、物品名称及相关素材的版权归 Youthcat Studio 所有。
+本项目代码采用 MIT License，全文见 [LICENSE](LICENSE)。
+
+其中的第三方内容分别是：
+
+| 内容 | 许可 / 归属 |
+|---|---|
+| 内嵌的配方数据集 | 来自 [FactorioLab](https://github.com/factoriolab/factoriolab)，同样遵循 MIT License |
+| 物品中文名 | 取自《戴森球计划》游戏本体本地化文件，版权归 Youthcat Studio 所有，**不在 MIT 覆盖范围内** |
+| 物品图标 | 运行时从 dsp-wiki 加载，版权归原作者 |
+
+本工具为非商业粉丝作品，与游戏开发商无隶属关系，不分发任何游戏本体资源文件。
+游戏名称、物品名称及相关素材的版权归各自权利人所有。
