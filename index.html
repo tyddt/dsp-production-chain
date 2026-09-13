@@ -67,7 +67,7 @@ svg text{font-family:inherit}
   <input id="rate" type="number" value="2" step="0.5" min="0" style="width:80px">
   <select id="unit"><option value="s">个/秒</option><option value="m">个/分</option></select>
   <button id="go">计算</button>
-  <button id="reset" class="ghost">清空选择</button>
+  <button id="reset" class="ghost">重置</button>
   <button id="theme" class="ghost">主题</button>
   <span id="ver" class="dim"></span>
 </header>
@@ -594,7 +594,14 @@ async function run(){
 }
 
 $('go').onclick = run;
-$('reset').onclick = () => { CHOSEN = {}; if (LAST) run(); else showEmpty(); };
+$('reset').onclick = () => {
+  // 清空到初始状态: 目标产物、配方选择、结果、以及保存的存档
+  CHOSEN = {}; LAST = null; ROOT = null;
+  NODES = []; BAL = {}; DEM = {}; SPRAY = 0; WARN = [];
+  $('search').value = ''; $('search').dataset.id = '';
+  saveState();
+  showEmpty();
+};
 $('theme').onclick = () => document.body.classList.toggle('light');
 document.querySelectorAll('aside select, aside input').forEach(e => e.addEventListener('change', () => {
   if (ROOT && LAST) run();
