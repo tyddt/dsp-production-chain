@@ -181,7 +181,7 @@ function prolif(){
   const v = $('m_prolif').value;
   return v && v!=='none' ? (ITEMS[v]||{}).module || null : null;
 }
-// 游戏中只能选【加速】模式、无法选【额外产出】的配方(BWiki 增产剂Mk.III)
+// 游戏中只能选【加速】模式、无法选【额外产出】的配方
 const SPEEDUP_ONLY = new Set(['mass-energy-storage','antimatter-fuel-rod',
   'antimatter-fuel-rod-advanced','x-ray-cracking','reforming-refine',
   'annihilation-constraint-sphere','strange-annihilation-fuel-rod']);
@@ -264,7 +264,7 @@ async function solve(item, rate, depth, anc, noSpray){
 }
 
 function spraysPerUnit(){
-  // 增产剂自身也能被喷涂: Mk.III 喷 Mk.III 时喷涂次数 60 -> 60x1.25 = 75 (BWiki)
+  // 增产剂自身也能被喷涂
   const P = prolif() || {};
   let s = P.sprays || 60;
   const cb = $('m_selfspray');
@@ -280,7 +280,7 @@ function sprayDemand(rec, t, spd, ps, mult){
 async function addSprayTree(){
   const P = prolif(); if (!P || SPRAY <= 1e-9) return;
   const pid = P.proliferator;
-  // anc 必须为空: 若传入 [pid], solve 的第一行循环检测会立刻把根节点判成环并截断
+  // anc 必须为空
   const sub = await solve(pid, SPRAY, 1, new Set(), true);
   if (sub) { sub.sprayRoot = true; (ROOT.kids = ROOT.kids || []).push(sub); }
 }
@@ -521,7 +521,7 @@ function power(){
     const cnt = n.count || 0;
     if (!cnt) continue;
     if (n.kind === 'frac') {
-      // 分馏塔功耗非线性: 单台重氢产出 <=18/min 恒为 720kW, 之后 0.06*(产出/分 - 6) MW
+      // 分馏塔功耗非线性
       const dpm = n.actual * 60 / cnt;
       mw += (dpm <= 18 ? 0.72 : 0.06*(dpm-6)) * mult * cnt;
       continue;
