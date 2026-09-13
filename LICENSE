@@ -19,20 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-Third-party content included in this repository:
-
-- Recipe/item/building data embedded in index.html comes from FactorioLab
-  (https://github.com/factoriolab/factoriolab), licensed under the MIT License.
-  Copyright (c) FactorioLab contributors.
-
-- Item names in Chinese are extracted from the game's own localization files.
-  Copyright (c) Youthcat Studio. These are NOT covered by the MIT License above.
-
-- Item icons are loaded at runtime from dsp-wiki.com and are not distributed
-  with this repository.
-
-Dyson Sphere Program and all related assets are trademarks and copyright of
-Youthcat Studio. This is an unofficial, non-commercial fan tool.
