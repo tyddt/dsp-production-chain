@@ -567,11 +567,22 @@ function fillSelects(){
 }
 
 let LAST = null;
+function showEmpty(msg){
+  const svg = $('tree');
+  svg.innerHTML = ''; svg.setAttribute('width', 100); svg.setAttribute('height', 40);
+  ['t_mach','t_mid','t_buy','t_by','t_over'].forEach(id => $(id).innerHTML = '');
+  $('bnList').innerHTML = `<div class="dim">${msg || '在左上角搜索并选择一个产物，然后点「计算」。'}</div>`;
+}
+
 async function run(){
   const raw = $('search').dataset.id || $('search').value;
   const id = ITEMS[raw] ? raw : (Object.values(ITEMS).find(i=>i.name===raw)||{}).id
     || (Object.values(ITEMS).find(i=>cn(i.id)===raw)||{}).id;
-  if (!id || !ITEMS[id]) { alert('找不到物品：' + raw); return; }
+  if (!id || !ITEMS[id]) {
+    LAST = null;
+    showEmpty(raw ? `找不到「${raw}」，请从搜索框的下拉候选里选一个物品。` : '请输入要生产的产物。');
+    return;
+  }
   let r = +$('rate').value || 0;
   if ($('unit').value==='m') r = r/60;
   NODES=[]; BAL={}; DEM={}; SPRAY=0; WARN=[];
@@ -583,21 +594,25 @@ async function run(){
 }
 
 $('go').onclick = run;
-$('reset').onclick = () => { CHOSEN = {}; if (LAST) run(); };
+$('reset').onclick = () => { CHOSEN = {}; if (LAST) run(); else showEmpty(); };
 $('theme').onclick = () => document.body.classList.toggle('light');
 document.querySelectorAll('aside select, aside input').forEach(e => e.addEventListener('change', () => {
   if (ROOT && LAST) run();
 }));
 $('rate').addEventListener('change', () => { if (ROOT && LAST) run(); });
 $('unit').addEventListener('change', () => { if (ROOT && LAST) run(); });
-$('search').addEventListener('change', () => { if (ROOT && LAST) run(); });
+$('search').addEventListener('change', run);      // 选好产物即计算，无需先点按钮
 
 const ST = readState();
 if (ST && Array.isArray(ST.cut)) CUT = new Set(ST.cut);
 fillSelects();
 applyState(ST);
-if (!(ST && ST.item)) { $('search').value = '引力矩阵'; $('search').dataset.id = 'gravity-matrix'; }
-run();
+if (ST && ST.item && ITEMS[ST.item]) {
+  run();                                          // 有历史记录才自动算
+} else {
+  $('search').value = ''; $('search').dataset.id = '';
+  showEmpty();
+}
 </script>
 </body>
 </html>
