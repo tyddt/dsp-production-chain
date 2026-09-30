@@ -62,7 +62,7 @@ svg text{font-family:inherit}
 <body>
 <header>
   <h1>戴森球计划 · 生产链求解器</h1>
-  <input id="search" list="itemList" placeholder="搜索产物，如 引力矩阵 / gravity" size="22" autocomplete="off">
+  <input id="search" list="itemList" placeholder="搜索产物，如 引力矩阵 / 极速传送带" size="22" autocomplete="off">
   <datalist id="itemList"></datalist>
   <input id="rate" type="number" value="2" step="0.5" min="0" style="width:80px">
   <select id="unit"><option value="s">个/秒</option><option value="m">个/分</option></select>
@@ -96,6 +96,16 @@ svg text{font-family:inherit}
     <input id="m_hprolif" type="checkbox" style="width:auto"> 给氢喷增产剂</label>
   <div class="hint">堆叠与喷剂都会提高分馏塔转化量</div>
 
+  <h3>采矿</h3>
+  <label>矿机<select id="m_miner">
+    <option value="mining-machine">采矿机</option>
+    <option value="advanced-mining-machine">大型采矿机</option>
+  </select></label>
+  <label>每台覆盖矿脉数<input id="m_veins" type="number" value="6" min="1" max="99" step="1" style="width:64px"></label>
+  <label>采集速度 %<input id="m_spd" type="number" value="100" min="100" max="300" step="10" style="width:64px"></label>
+  <label>矿物利用等级<input id="m_vu" type="number" value="0" min="0" max="999" step="1" style="width:64px"></label>
+  <div class="hint">每条矿脉 0.5/s；台数 = 矿脉数 ÷ 每台覆盖数，向上取整。采集速度与功耗仅大型采矿机有效，功耗按倍率平方(300% → 9 倍)</div>
+
   <h3>取整传播</h3>
   <label>方式<select id="m_prop">
     <option value="exact">按理论需求(不膨胀)</option>
@@ -103,8 +113,12 @@ svg text{font-family:inherit}
   </select></label>
 
   <h3>终止层(到这层就外购)</h3>
+  <div style="display:flex;gap:6px;margin-bottom:6px">
+    <button class="ghost" id="cut_smelt" style="flex:1">默认到熔炼层</button>
+    <button class="ghost" id="cut_ore" style="flex:1">推到原矿(含矿机)</button>
+  </div>
   <div class="chk" id="cutoffs"></div>
-  <div class="hint">原矿与采集物自动终止</div>
+  <div class="hint">含零件与建筑（建筑可当外购件，如直接买高速传送带）；原矿与采集物自动终止</div>
 </aside>
 
 <main>
@@ -170,10 +184,19 @@ function icHtml(id, size){
 
 function beltSpeed(){ return (ITEMS[$('m_belt').value]||{}).belt?.speed || 30; }
 function speedOf(m){ const s = (ITEMS[m]||{}).machine?.speed; return s==null?1:s; }
+const POWER_FB = {'mining-machine':420, 'orbital-collector':30000};
+const MINERS = ['mining-machine','advanced-mining-machine'];
+const MINER_VEINS = {'mining-machine':6, 'advanced-mining-machine':30};
+function minerId(){ return ($('m_miner')||{}).value || 'mining-machine'; }
+function veinsPerMiner(){ return Math.max(1, +$('m_veins').value || MINER_VEINS[minerId()]); }
+function veinUtil(){ return 1 + 0.1 * (+$('m_vu').value || 0); }
+function minerSpeed(){ return (minerId()==='advanced-mining-machine' ? (+$('m_spd').value || 100) : 100) / 100; }
 function pickMachine(rec){
   const order = [$('m_asm').value, $('m_smel').value, $('m_chem').value, $('m_lab').value,
     'miniature-particle-collider','oil-refinery','chemical-plant','arc-smelter',
-    'assembling-machine-2','assembling-machine-1','mining-machine','orbital-collector'];
+    'assembling-machine-2','assembling-machine-1',
+    'df-recomposing-assembler','df-negentropy-smelter','df-self-evolution-lab',
+    'mining-machine','orbital-collector'];
   for (const m of order) if ((rec.producers||[]).includes(m)) return m;
   return (rec.producers||[])[0] || '?';
 }
@@ -219,7 +242,12 @@ function askRecipes(item, rate){
   });
 }
 
-let NODES = [], BAL = {}, DEM = {}, TOTAL_MW = 0, SPRAY = 0, WARN = [];
+let NODES = [], BAL = {}, DEM = {}, TOTAL_MW = 0, SPRAY = 0, SPRAYFLOW = {}, WARN = [];
+function sprayCoaters(){
+  // 每条载有喷涂物的带至少 1 台喷涂机
+  let n = 0; for (const k in SPRAYFLOW) n += Math.ceil(SPRAYFLOW[k]/beltSpeed() - 1e-9);
+  return n;
+}
 async function solve(item, rate, depth, anc, noSpray){
   if (rate <= 1e-9) return null;
   if (depth > 16) { const n={item,rate,depth,kind:'loop'}; NODES.push(n); return n; }
@@ -232,9 +260,22 @@ async function solve(item, rate, depth, anc, noSpray){
   if (!rec) { const n={item,rate,depth,kind:'raw'}; NODES.push(n); return n; }
 
   if ((rec.flags||[]).includes('mining')) {
+    let b = rec.producers[0];
+    if (MINERS.includes(b)) b = minerId();
     const oq = Object.values(rec.out)[0];
-    const cnt = rate / (oq / rec.time);
-    const n = {item,rate,depth,kind:'mining',rec,building:rec.producers[0],count:cnt};
+    const spdMul = (b === 'advanced-mining-machine') ? minerSpeed() : 1;
+    const per = oq / rec.time * speedOf(b) * veinUtil() * spdMul;
+    const n = {item,rate,depth,kind:'mining',rec,building:b,per};
+    if (MINERS.includes(b)) {
+      // 每条矿脉 0.5/s, 单台覆盖 K 条 -> 台数 = ceil(矿脉数/K)
+      n.veins = rate / per; n.K = veinsPerMiner();
+      n.count = Math.ceil(n.veins / n.K - 1e-9);
+      n.actual = n.count * n.K * per;
+    } else {
+      n.veins = null;
+      n.count = Math.ceil(rate / per - 1e-9);
+      n.actual = n.count * per;
+    }
     NODES.push(n); return n;
   }
   if (rec.id === 'deuterium-fractionation') return await frac(item, rate, depth, noSpray);
@@ -247,6 +288,8 @@ async function solve(item, rate, depth, anc, noSpray){
 
   if (P.proliferator && pp > 0 && speedupOnly(rec, item))
     WARN.push(`${cn(item)} 在游戏中只能选【加速】模式，不能选【额外产出】；当前按 +${(pp*100).toFixed(0)}% 计算，结果偏乐观`);
+  if (m === 'ray-receiver' || m === 'ray-receiver-pro')
+    WARN.push(`${cn(item)} 由射线接收站产出，实际速率取决于戴森球功率(无戴森球时为 0)；此处按满功率 ${oq}/${t}s 计`);
 
   for (const k in (rec.out||{})) if (k!==item) BAL[k] = (BAL[k]||0) + act*(rec.out[k]/oq);
 
@@ -256,6 +299,7 @@ async function solve(item, rate, depth, anc, noSpray){
   const a2 = new Set(anc); a2.add(item);
   for (const k in (rec.in||{})) {
     const need = rec.in[k]/t * spd * (1+ps) * mult;
+    if (P.proliferator && !noSpray) SPRAYFLOW[k] = (SPRAYFLOW[k]||0) + need;
     const c = await solve(k, need, depth+1, a2, noSpray);
     if (c) n.kids.push(c);
   }
@@ -301,7 +345,8 @@ async function frac(item, rate, depth, noSpray){
     count = Math.ceil(Math.log(1 - (rate/lanes)/F)/Math.log(1-pct) - 1e-9);
     loop = F*lanes; act = F*lanes*(1-Math.pow(1-pct,count));
   }
-  const n = {item,rate,depth,kind:'frac',building:'fractionator',count:count*lanes,lanes,loop,actual:act};
+  const n = {item,rate,depth,kind:'frac',building:'fractionator',count:count*lanes,lanes,loop,actual:act,
+             pilers: lanes*(stack-1)};
   NODES.push(n);
   const a2 = new Set([item]);
   const c = await solve('hydrogen', rate, depth+1, a2, noSpray);
@@ -361,7 +406,9 @@ function draw(){
     else if (x.kind === 'frac') sub = `分馏塔 ×${x.count}`;
     else if (x.kind === 'cutoff') sub = `外购 ${fmt(x.rate*60)}/min`;
     else if (x.kind === 'raw') sub = '原矿 / 采集';
-    else if (x.kind === 'mining') sub = `${mcn(x.building)} ×${Math.ceil(x.count)}`;
+    else if (x.kind === 'mining') sub = x.veins
+      ? `${mcn(x.building)} ×${x.count}（${x.veins.toFixed(0)} 矿脉）`
+      : `${mcn(x.building)} ×${x.count}`;
     else if (x.kind === 'loop') sub = '循环依赖，已截断';
     const dash = (x.kind==='cutoff'||x.kind==='raw') ? 'stroke-dasharray="4 3"' : '';
     s += `<g class="nd" data-id="${x.item}" style="cursor:pointer">
@@ -406,6 +453,8 @@ function saveState(){
       m_selfspray: $('m_selfspray').checked, m_hprolif: $('m_hprolif').checked,
       m_frac: $('m_frac').value, m_pct: $('m_pct').value, m_stack: $('m_stack').value,
       m_prop: $('m_prop').value, cut: [...CUT],
+      m_miner: $('m_miner').value, m_veins: $('m_veins').value, m_vu: $('m_vu').value,
+      m_spd: $('m_spd').value,
       chosen: Object.keys(CHOSEN).reduce((o,k)=>{ o[k] = CHOSEN[k] ? CHOSEN[k].id : null; return o; }, {})
     };
     localStorage.setItem(LS_KEY, JSON.stringify(st));
@@ -418,6 +467,8 @@ function applyState(st){
   setv('m_asm',st.m_asm); setv('m_smel',st.m_smel); setv('m_chem',st.m_chem);
   setv('m_lab',st.m_lab); setv('m_belt',st.m_belt); setv('m_prolif',st.m_prolif);
   setv('m_frac',st.m_frac); setv('m_pct',st.m_pct); setv('m_stack',st.m_stack);
+  setv('m_miner',st.m_miner); setv('m_veins',st.m_veins); setv('m_vu',st.m_vu);
+  setv('m_spd',st.m_spd);
   setv('m_prop',st.m_prop);
   if (st.m_selfspray!=null) $('m_selfspray').checked = !!st.m_selfspray;
   if (st.m_hprolif!=null) $('m_hprolif').checked = !!st.m_hprolif;
@@ -434,6 +485,11 @@ function consumersMap(){
   return m;
 }
 
+function minedInfo(it){
+  // 以树上真实选中的采集节点为准, 避免误报"这个物品也能挖"
+  const n = NODES.find(x => x.kind==='mining' && x.item===it);
+  return n ? {b:n.building, per:n.per, K:n.K, veins:n.veins} : null;
+}
 function midTable(){
   const cons = consumersMap(), rows = [];
   for (const it in DEM) {
@@ -444,9 +500,17 @@ function midTable(){
   }
   rows.sort((a,b)=>b[1]-a[1]);
   $('t_mid').innerHTML = rows.length
-    ? `<tr><th>物品</th><th>总需求/s</th><th>总需求/min</th><th>下游</th><th>需带数</th></tr>`
-      + rows.map(([it,r,c])=>`<tr><td>${icHtml(it,18)} ${cn(it)}</td><td>${fmt(r)}</td>
-          <td>${fmt(r*60)}</td><td>${c}</td><td>${Math.ceil(r/beltSpeed())}</td></tr>`).join('')
+    ? `<tr><th>物品</th><th>总需求/s</th><th>总需求/min</th><th>下游</th><th>需带数 / 采集设备</th></tr>`
+      + rows.map(([it,r,c])=>{
+          const mi = minedInfo(it);
+          const v = mi ? r / mi.per : 0;   // 本表是合并后的总量, 矿脉数按总需求重算
+          const last = mi ? (MINERS.includes(mi.b)
+            ? `${v.toFixed(0)} 矿脉 → ${Math.ceil(v/veinsPerMiner())} 台 ${mcn(mi.b)}`
+            : `${Math.ceil(r/mi.per)} 台 ${mcn(mi.b)}`)
+            : Math.ceil(r/beltSpeed());
+          return `<tr><td>${icHtml(it,18)} ${cn(it)}</td><td>${fmt(r)}</td>
+          <td>${fmt(r*60)}</td><td>${c}</td><td>${last}</td></tr>`;
+        }).join('')
     : `<tr><td class="dim">无中间产物</td></tr>`;
 }
 
@@ -475,12 +539,33 @@ function bottleneck(){
     : `<div class="ok">未发现明显瓶颈。注意：分拣器与物流塔吞吐、原料缓存（0.10.29 机制）仍不在模型内，请按设计留余量。</div>`;
 }
 
+function miningAgg(){
+  // 同一矿种的多个分支合并成一座矿: 台数 = ceil(总矿脉数 / 每台覆盖数)
+  const g = {};
+  for (const n of NODES) if (n.kind==='mining') {
+    const a = g[n.building+'|'+n.item] = g[n.building+'|'+n.item] || {b:n.building, per:n.per, rate:0};
+    a.rate += n.rate;
+  }
+  const byB = {};
+  for (const k in g) {
+    const a = g[k];
+    const c = MINERS.includes(a.b) ? Math.ceil(a.rate/a.per/veinsPerMiner() - 1e-9)
+                                   : Math.ceil(a.rate/a.per - 1e-9);
+    byB[a.b] = (byB[a.b]||0) + c;
+  }
+  return byB;
+}
 function summary(){
   const bs = beltSpeed();
-  const rows = n => n.filter(x=>x);
   const mach = {};
-  for (const n of NODES) if (n.kind==='craft'||n.kind==='frac'||n.kind==='mining')
+  for (const n of NODES) if (n.kind==='craft'||n.kind==='frac')
     mach[mcn(n.building)] = (mach[mcn(n.building)]||0) + Math.ceil(n.count||0);
+  const ma = miningAgg();
+  for (const b in ma) mach[mcn(b)] = (mach[mcn(b)]||0) + ma[b];
+  // 堆叠循环带要额外配自动集装机: 每层堆叠 1 台/带
+  const pilers = NODES.filter(n=>n.kind==='frac').reduce((s,n)=>s+(n.pilers||0), 0);
+  if (pilers) mach[mcn('automatic-piler')] = pilers;
+  if (prolif() && SPRAY > 1e-9) mach[mcn('spray-coater')] = sprayCoaters();
   const warns = [...new Set(WARN)].map(w=>`<tr><td colspan="2" class="warn">! ${w}</td></tr>`).join('');
   const sprayRow = SPRAY > 1e-9
     ? `<tr><td>喷涂需求合计</td><td>${fmt(SPRAY*60)}/min</td></tr>` : '';
@@ -517,6 +602,13 @@ function summary(){
 function power(){
   let mw = 0; const P = prolif()||{};
   const mult = P.consumption ? 1+P.consumption : 1;
+  const add = (b, cnt) => {
+    const m = (ITEMS[b]||{}).machine||{};
+    let u = m.usage == null ? (POWER_FB[b]||0) : m.usage;
+    if (b === 'advanced-mining-machine') u *= minerSpeed()**2;   // 功耗按采集速度倍率平方
+    const pm = m.modules ? mult : 1;      // 无插件槽的设备不吃增产剂电耗
+    mw += (u*pm + (m.drain||0)) * cnt / 1000;
+  };
   for (const n of NODES) {
     const cnt = n.count || 0;
     if (!cnt) continue;
@@ -524,11 +616,21 @@ function power(){
       // 分馏塔功耗非线性
       const dpm = n.actual * 60 / cnt;
       mw += (dpm <= 18 ? 0.72 : 0.06*(dpm-6)) * mult * cnt;
-      continue;
-    }
-    if (n.kind !== 'craft' && n.kind !== 'mining') continue;
-    const m = (ITEMS[n.building]||{}).machine||{};
-    mw += ((m.usage||0)*mult + (m.drain||0)) * cnt / 1000;
+    } else if (n.kind === 'craft') add(n.building, cnt);
+  }
+  const g = {};
+  for (const n of NODES) if (n.kind==='mining') {
+    const a = g[n.building+'|'+n.item] = g[n.building+'|'+n.item] || {b:n.building, per:n.per, rate:0};
+    a.rate += n.rate;
+  }
+  for (const k in g) { const a = g[k];
+    add(a.b, MINERS.includes(a.b) ? Math.ceil(a.rate/a.per/veinsPerMiner()-1e-9)
+                                  : Math.ceil(a.rate/a.per-1e-9)); }
+  const pilers = NODES.filter(n=>n.kind==='frac').reduce((s,n)=>s+(n.pilers||0), 0);
+  if (pilers) add('automatic-piler', pilers);
+  if (prolif() && SPRAY > 1e-9) {
+    const cm = (ITEMS['spray-coater']||{}).machine||{};
+    mw += ((cm.usage||90) + (cm.drain||4.5)) * sprayCoaters() / 1000;
   }
   return mw;
 }
@@ -539,6 +641,7 @@ function fillSelects(){
   mk($('m_smel'), ['plane-smelter','arc-smelter','df-negentropy-smelter']);
   mk($('m_chem'), ['quantum-chemical-plant','chemical-plant']);
   mk($('m_lab'), ['matrix-lab','df-self-evolution-lab']);
+  $('m_miner').onchange = () => { $('m_veins').value = MINER_VEINS[minerId()]; };
   $('m_belt').innerHTML = ['conveyor-belt-3','conveyor-belt-2','conveyor-belt-1'].map(i=>
     `<option value="${i}">${cn(i)} (${ITEMS[i].belt.speed}/s)</option>`).join('');
   $('m_prolif').innerHTML = ['none','proliferator-1-speed','proliferator-2-speed','proliferator-3-speed',
@@ -550,18 +653,27 @@ function fillSelects(){
   $('m_lab').value = 'matrix-lab';
 
   const pool = Object.values(ITEMS).filter(i => i.category==='components' && (BY_OUT[i.id]||[]).length);
-  $('cutoffs').innerHTML = pool.map(i=>
+  // 建筑(传送带/制造台等)同样能在制造台生产, 也要能选成目标或终止层
+  const bpool = Object.values(ITEMS).filter(i =>
+    (i.category==='buildings' || i.category==='buildings-alt') && (BY_OUT[i.id]||[]).length);
+  const pickPool = pool.concat(bpool);
+  $('cutoffs').innerHTML = pickPool.map(i=>
     `<label><input type="checkbox" value="${i.id}" ${CUT.has(i.id)?'checked':''}> ${cn(i.id)}</label>`).join('');
   $('cutoffs').onchange = e => {
     if (e.target.type!=='checkbox') return;
     e.target.checked ? CUT.add(e.target.value) : CUT.delete(e.target.value);
   };
+  const syncCut = () => $('cutoffs').querySelectorAll('input')
+    .forEach(x => x.checked = CUT.has(x.value));
+  const cutBtn = (id, fn) => { const b=$(id); if (b) b.onclick = () => { fn(); syncCut(); if (LAST) run(); }; };
+  cutBtn('cut_ore', () => CUT.clear());                      // 全不勾 = 一路推到原矿, 会出现采矿机
+  cutBtn('cut_smelt', () => { CUT = new Set(CUT_DEF); });    // 恢复默认终止层
 
   const dl = $('itemList');
-  dl.innerHTML = pool.map(i=>`<option value="${cn(i.id)}">${i.id}</option>`).join('');
+  dl.innerHTML = pickPool.map(i=>`<option value="${cn(i.id)}">${i.id}</option>`).join('');
   $('search').addEventListener('change', () => {
     const v = $('search').value;
-    const hit = pool.find(i => cn(i.id)===v || i.id===v || (i.name||'')===v);
+    const hit = pickPool.find(i => cn(i.id)===v || i.id===v || (i.name||'')===v);
     if (hit) $('search').dataset.id = hit.id;
   });
 }
@@ -574,18 +686,55 @@ function showEmpty(msg){
   $('bnList').innerHTML = `<div class="dim">${msg || '在左上角搜索并选择一个产物，然后点「计算」。'}</div>`;
 }
 
+let BUSY = false, DIRTY = false;
 async function run(){
-  const raw = $('search').dataset.id || $('search').value;
-  const id = ITEMS[raw] ? raw : (Object.values(ITEMS).find(i=>i.name===raw)||{}).id
-    || (Object.values(ITEMS).find(i=>cn(i.id)===raw)||{}).id;
-  if (!id || !ITEMS[id]) {
+  // 串行化: 一次计算未结束时再改参数, 只记一个待办, 避免两次计算同时往全局表里写
+  if (BUSY) { DIRTY = true; return; }
+  BUSY = true;
+  try { await runOnce(); } finally { BUSY = false; }
+  if (DIRTY) { DIRTY = false; run(); }
+}
+function resolveItem(raw){
+  raw = (raw||'').trim();
+  if (!raw) return null;
+  if (ITEMS[raw]) return raw;
+  const all = Object.values(ITEMS);
+  const hit = all.find(i => i.name === raw || cn(i.id) === raw);
+  if (hit) return hit.id;
+  const low = raw.toLowerCase();
+  const c = all.filter(i => ('' + cn(i.id)).includes(raw) || (i.name||'').toLowerCase().includes(low));
+  return c.length === 1 ? c[0].id : null;
+}
+function similarItems(raw){
+  // 找不到时按字符重合度给近似候选, 兜住"极速/急速"这类同音错字
+  const c = (raw||'').trim();
+  if (!c) return [];
+  const score = s => {
+    const a = {}; let n = 0;
+    for (const ch of c) a[ch] = (a[ch]||0) + 1;
+    for (const ch of s) if (a[ch]) { a[ch]--; n++; }
+    return n / Math.max(c.length, s.length);
+  };
+  return Object.values(ITEMS).filter(i => (BY_OUT[i.id]||[]).length)
+    .map(i => [cn(i.id), score(cn(i.id))])
+    .filter(x => x[1] >= 0.6).sort((a,b) => b[1]-a[1])
+    .slice(0, 4).map(x => x[0]);
+}
+async function runOnce(){
+  const raw = $('search').value.trim();
+  const id = resolveItem(raw);
+  if (!id) {
     LAST = null;
-    showEmpty(raw ? `找不到「${raw}」，请从搜索框的下拉候选里选一个物品。` : '请输入要生产的产物。');
+    if (!raw) { showEmpty('请输入要生产的产物，例如「引力矩阵」或「极速传送带」。'); return; }
+    const sug = similarItems(raw);
+    showEmpty(`找不到「${raw}」。` + (sug.length ? ` 你是要找：${sug.join(' / ')}？` : '')
+      + ' 也可以从搜索框的下拉候选里选。');
     return;
   }
+  $('search').dataset.id = id;
   let r = +$('rate').value || 0;
   if ($('unit').value==='m') r = r/60;
-  NODES=[]; BAL={}; DEM={}; SPRAY=0; WARN=[];
+  NODES=[]; BAL={}; DEM={}; SPRAY=0; SPRAYFLOW={}; WARN=[];
   LAST = {id, r};                       // midTable 依赖 LAST 排除最终产物，必须先设
   ROOT = await solve(id, r, 0, new Set(), false);
   await addSprayTree();
@@ -597,15 +746,14 @@ $('go').onclick = run;
 $('reset').onclick = () => {
   // 清空到初始状态: 目标产物、配方选择、结果、以及保存的存档
   CHOSEN = {}; LAST = null; ROOT = null;
-  NODES = []; BAL = {}; DEM = {}; SPRAY = 0; WARN = [];
+  NODES = []; BAL = {}; DEM = {}; SPRAY = 0; SPRAYFLOW = {}; WARN = [];
   $('search').value = ''; $('search').dataset.id = '';
   saveState();
   showEmpty();
 };
 $('theme').onclick = () => document.body.classList.toggle('light');
-document.querySelectorAll('aside select, aside input').forEach(e => e.addEventListener('change', () => {
-  if (ROOT && LAST) run();
-}));
+// 用事件委托: 终止层的勾选框是 fillSelects() 之后才生成的, 逐个绑定会漏掉它们
+document.querySelector('aside').addEventListener('change', () => { if (ROOT && LAST) run(); });
 $('rate').addEventListener('change', () => { if (ROOT && LAST) run(); });
 $('unit').addEventListener('change', () => { if (ROOT && LAST) run(); });
 $('search').addEventListener('change', run);      // 选好产物即计算，无需先点按钮
