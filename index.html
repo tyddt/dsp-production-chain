@@ -62,7 +62,7 @@ svg text{font-family:inherit}
 <body>
 <header>
   <h1>戴森球计划 · 生产链求解器</h1>
-  <input id="search" list="itemList" placeholder="搜索产物，如 引力矩阵 / 极速传送带" size="22" autocomplete="off">
+  <input id="search" list="itemList" placeholder="搜索产物，如 引力矩阵 / yljz" size="22" autocomplete="off">
   <datalist id="itemList"></datalist>
   <input id="rate" type="number" value="2" step="0.5" min="0" style="width:80px">
   <select id="unit"><option value="s">个/秒</option><option value="m">个/分</option></select>
@@ -125,7 +125,7 @@ svg text{font-family:inherit}
   <div class="card" id="bnCard"><h2>体检结论</h2><div id="bnList"></div></div>
 
   <div class="card"><h2>生产树</h2><div id="treeWrap"><svg id="tree" width="100" height="40"></svg></div>
-  <div class="hint">节点 = 物品，连线上标注每秒流量。点击节点看配方详情。虚线框 = 终止层外购。</div></div>
+  <div class="hint" id="treeHint">节点 = 物品，连线上标注每秒流量。点击节点看配方详情。虚线框 = 终止层外购。</div></div>
 
   <div class="card"><h2>设备汇总</h2><table id="t_mach"></table></div>
 
@@ -162,6 +162,7 @@ const CN = {"gravity-matrix": "引力矩阵", "graviton-lens": "引力透镜", "
 const cn = id => CN[id] || (ITEMS[id] && ITEMS[id].name) || id;
 const MCN = {"tesla-tower": "电力感应塔", "wireless-power-tower": "无线输电塔", "satellite-substation": "卫星配电站", "wind-turbine": "风力涡轮机", "thermal-power-plant": "火力发电厂", "solar-panel": "太阳能板", "geothermal-power-station": "地热发电站", "mini-fusion-power-plant": "微型聚变发电站", "energy-exchanger": "能量枢纽", "accumulator": "蓄电器", "accumulator-full": "蓄电器（满）", "ray-receiver": "射线接收站", "artificial-star": "人造恒星", "conveyor-belt-1": "低速传送带", "conveyor-belt-2": "高速传送带", "conveyor-belt-3": "极速传送带", "splitter": "四向分流器", "automatic-piler": "自动集装机", "traffic-monitor": "流速器", "spray-coater": "喷涂机", "storage-1": "小型储物仓", "storage-2": "大型储物仓", "storage-tank": "储液罐", "logistics-distributor": "物流配送器", "planetary-logistics-station": "物流运输站", "interstellar-logistics-station": "星际物流运输站", "orbital-collector": "轨道采集器", "sorter-1": "低速分拣器", "sorter-2": "高速分拣器", "sorter-3": "极速分拣器", "sorter-4": "集装分拣器", "mining-machine": "采矿机", "advanced-mining-machine": "大型采矿机", "water-pump": "抽水站", "oil-extractor": "原油萃取站", "oil-refinery": "原油精炼厂", "fractionator": "分馏塔", "chemical-plant": "化工厂", "quantum-chemical-plant": "化工厂 Mk.II", "miniature-particle-collider": "微型粒子对撞机", "arc-smelter": "电弧熔炉", "plane-smelter": "位面熔炉", "df-negentropy-smelter": "熔炉 Mk.III", "assembling-machine-1": "制造台 Mk.I", "assembling-machine-2": "制造台 Mk.II", "assembling-machine-3": "制造台 Mk.III", "df-recomposing-assembler": "制造台 Mk.IV", "matrix-lab": "矩阵研究站", "df-self-evolution-lab": "矩阵研究站 Mk.II", "em-rail-ejector": "电磁轨道弹射器", "vertical-launching-silo": "垂直发射井", "df-gauss-turret": "高斯机枪塔", "df-missile-turret": "导弹防御塔", "df-implosion-cannon": "聚爆加农炮", "df-laser-turret": "高频激光塔", "df-plasma-turret": "磁化电浆炮", "df-plasma-turret-sr": "地面电浆炮", "df-battlefield-analysis-base": "战场分析基站", "df-jammer-tower": "干扰塔", "df-signal-tower": "信标", "df-planetary-shield-generator": "护盾发生器", "ray-receiver-pro": "Ray Receiver (Graviton lens)"};
 const mcn = id => MCN[id] || cn(id) || id;
+const PY = {"accumulator": "xdq", "accumulator-full": "xdqm", "advanced-mining-machine": "dxckj", "annihilation-constraint-sphere": "ymysq", "antimatter": "fwz", "antimatter-fuel-rod": "fwzrlb", "arc-smelter": "dhrl", "artificial-star": "rzhx", "assembling-machine-1": "zztmk1", "assembling-machine-2": "zztmk2", "assembling-machine-3": "zztmk3", "automatic-piler": "zdjzj", "carbon-nanotube": "tnmg", "casimir-crystal": "kxmejt", "chemical-plant": "hgc", "circuit-board": "dlb", "coal": "mk", "conveyor-belt-1": "dscsd", "conveyor-belt-2": "gscsd", "conveyor-belt-3": "jscsd", "copper-ingot": "tk", "copper-ore": "tk", "critical-photon": "ljgz", "crude-oil": "yy", "crystal-silicon": "jgg", "deuterium": "cq", "deuteron-fuel-rod": "dhrlb", "df-antimatter-capsule": "fwzjn", "df-attack-drone": "dmzdjfx", "df-battlefield-analysis-base": "zcfxjz", "df-combustible-unit": "rsdy", "df-corvette": "tkzdjax", "df-crystal-explosive-unit": "jsbpdy", "df-crystal-shell-set": "jspdz", "df-destroyer": "tkzdjfx", "df-engine": "dlyq", "df-explosive-unit": "bpdy", "df-gauss-turret": "gsjqt", "df-gravity-missile-set": "ylddz", "df-high-explosive-shell-set": "gbpdz", "df-implosion-cannon": "jbjnp", "df-jammer-tower": "grt", "df-jamming-capsule": "dcgrjn", "df-laser-turret": "gpjgt", "df-magnum-ammo-box": "jqdx", "df-missile-set": "ddz", "df-missile-turret": "ddfyt", "df-negentropy-smelter": "rlmk3", "df-planetary-shield-generator": "hdfsq", "df-plasma-capsule": "dlzjn", "df-plasma-turret": "chdjp", "df-plasma-turret-sr": "dmdjp", "df-precision-drone": "dmzdjax", "df-prototype": "dmzdjex", "df-recomposing-assembler": "zztmk4", "df-self-evolution-lab": "jzyjzmk2", "df-shell-set": "pdz", "df-signal-tower": "xb", "df-strange-annihilation-fuel-rod": "jsrlb", "df-superalloy-ammo-box": "chjdx", "df-supersonic-missile-set": "cysddz", "df-suppressing-capsule": "dcyzjn", "df-titanium-ammo-box": "thdx", "diamond": "jgs", "dyson-sphere-component": "dsqzj", "electric-motor": "ddj", "electromagnetic-matrix": "dcjz", "electromagnetic-turbine": "dcwl", "em-rail-ejector": "dcgdtsq", "energetic-graphite": "gnsm", "energy-exchanger": "nlsn", "energy-matrix": "nljz", "fire-ice": "krb", "foundation": "dj", "fractal-silicon": "fxgs", "fractionator": "flt", "frame-material": "kjcl", "gear": "cl", "geothermal-power-station": "drfdz", "glass": "bl", "graphene": "smx", "graviton-lens": "yltj", "gravity-matrix": "yljz", "high-purity-silicon": "gcgk", "hydrogen": "q", "hydrogen-fuel-rod": "qrlb", "information-matrix": "xxjz", "interstellar-logistics-station": "xjwlysz", "iron-ingot": "tk", "iron-ore": "tk", "kimberlite-ore": "jblks", "logistics-bot": "psysj", "logistics-distributor": "wlpsq", "logistics-drone": "wlysj", "logistics-vessel": "xjwlysc", "magnet": "ct", "magnetic-coil": "cxq", "matrix-lab": "jzyjz", "microcrystalline-component": "wjyj", "mini-fusion-power-plant": "wxjbfdz", "miniature-particle-collider": "wxlzdzj", "mining-machine": "ckj", "oil-extractor": "yycqz", "oil-refinery": "yyjlc", "optical-grating-crystal": "gss", "orbital-collector": "gdcjq", "organic-crystal": "yjjt", "particle-broadband": "lzkd", "particle-container": "lzrq", "photon-combiner": "gzhbq", "plane-filter": "wmglq", "plane-smelter": "wmrl", "planetary-logistics-station": "wlysz", "plasma-exciter": "djjfq", "plastic": "sl", "prism": "lj", "processor": "clq", "proliferator-1": "zcjmk1", "proliferator-2": "zcjmk2", "proliferator-3": "zcjmk3", "quantum-chemical-plant": "hgcmk2", "quantum-chip": "lzxp", "ray-receiver": "sxjsz", "refined-oil": "jly", "reinforced-thruster": "jltjq", "satellite-substation": "wxpdz", "silicon-ore": "gs", "small-carrier-rocket": "xxyzhj", "solar-panel": "tynb", "solar-sail": "tyf", "sorter-1": "dsfjq", "sorter-2": "gsfjq", "sorter-3": "jsfjq", "sorter-4": "jzfjq", "space-warper": "kjqqq", "spiniform-stalagmite-crystal": "csjj", "splitter": "sxflq", "spray-coater": "ptj", "steel": "gc", "stone": "sk", "stone-brick": "sc", "storage-1": "xxcwc", "storage-2": "dxcwc", "storage-tank": "cyg", "strange-matter": "qywz", "structure-matrix": "jgjz", "sulfuric-acid": "ls", "super-magnetic-ring": "cjcch", "tesla-tower": "dlgyt", "thermal-power-plant": "hlfdc", "thruster": "tjq2", "titanium-alloy": "thj", "titanium-crystal": "tjs", "titanium-glass": "thbl", "titanium-ingot": "tk", "titanium-ore": "ts", "traffic-monitor": "lsq", "unipolar-magnet": "djcs", "universe-matrix": "yzjz", "vertical-launching-silo": "czfsj", "water": "s", "water-pump": "csz", "wind-turbine": "flwlj", "wireless-power-tower": "wxsdt"};                      // 拼音首字母: item id -> 首字母串
 
 const CUT_DEF = ['iron-ingot','copper-ingot','high-purity-silicon','titanium-ingot','steel','energetic-graphite',
   'glass','diamond','gear','magnetic-coil','magnet','stone-brick','water','sulfuric-acid','refined-oil','crude-oil','plastic'];
@@ -368,12 +369,53 @@ function fmt(v){
 
 const COL = 232, ROW = 62, NW = 208, NH = 46;
 let ROOT = null;
+let COLLAPSED = new Set();          // 已折叠分支, 存"从根到该节点的物品路径", 换配方后自动失效
+const vkids = x => (x._collapsed ? [] : (x.kids || []));
+function prepPaths(x, p){
+  x._p = p ? p + '/' + x.item : x.item;
+  // 根节点不参与折叠(收了就只剩一个框, 没有意义)
+  x._collapsed = p !== '' && COLLAPSED.has(x._p) && !!(x.kids && x.kids.length);
+  (x.kids || []).forEach(k => prepPaths(k, x._p));
+}
+function subtreeNodes(x, out){
+  out = out || [];
+  out.push(x);
+  vkids(x).forEach(k => subtreeNodes(k, out));
+  return out;
+}
+function subtreeMachines(x){
+  // 被折叠分支里藏了多少台设备, 口径与"设备汇总"一致(同设备同物品合并后取整)
+  const inSet = new Set(subtreeNodes(x));
+  const agg = {}, g = {};
+  for (const n of NODES) {
+    if (!inSet.has(n)) continue;
+    if (n.kind === 'craft' || n.kind === 'frac')
+      agg[mcn(n.building)] = (agg[mcn(n.building)] || 0) + Math.ceil(n.count || 0);
+    else if (n.kind === 'mining') {
+      const a = g[n.building + '|' + n.item] = g[n.building + '|' + n.item] || {b:n.building, per:n.per, rate:0};
+      a.rate += n.rate;
+    }
+  }
+  for (const k in g) {
+    const a = g[k];
+    const c = MINERS.includes(a.b) ? Math.ceil(a.rate/a.per/veinsPerMiner() - 1e-9)
+                                   : Math.ceil(a.rate/a.per - 1e-9);
+    agg[mcn(a.b)] = (agg[mcn(a.b)] || 0) + c;
+  }
+  return Object.values(agg).reduce((s, v) => s + v, 0);
+}
+function toggleFold(path){
+  if (!path || path.indexOf('/') < 0) return;       // 根节点不给折叠
+  if (COLLAPSED.has(path)) COLLAPSED.delete(path); else COLLAPSED.add(path);
+  saveState(); draw();
+}
 function layout(n){
   let cur = layout.cur || 0;
   const walk = (x, d) => {
     x._d = d;
-    if (!x.kids || !x.kids.length) { x._y = cur; cur += ROW; }
-    else { const ys = x.kids.map(k => walk(k, d+1)); x._y = (ys[0] + ys[ys.length-1]) / 2; }
+    const ks = vkids(x);
+    if (!ks.length) { x._y = cur; cur += ROW; }
+    else { const ys = ks.map(k => walk(k, d+1)); x._y = (ys[0] + ys[ys.length-1]) / 2; }
     return x._y;
   };
   walk(n, 0);
@@ -381,16 +423,17 @@ function layout(n){
 }
 function draw(){
   if (!ROOT) return;
+  prepPaths(ROOT, '');
   layout.cur = 0; layout(ROOT);
   let maxd = 0, maxy = 0;
-  (function w(x){ maxd = Math.max(maxd, x._d); maxy = Math.max(maxy, x._y); (x.kids||[]).forEach(w); })(ROOT);
+  (function w(x){ maxd = Math.max(maxd, x._d); maxy = Math.max(maxy, x._y); vkids(x).forEach(w); })(ROOT);
   const W = (maxd+1)*COL + 30, H = maxy + ROW + 30;
   const svg = $('tree');
   svg.setAttribute('width', W); svg.setAttribute('height', H);
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   let s = `<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#4a9eff" stroke-width="1.6" stroke-linecap="round"/></marker></defs>`;
   (function edges(x){
-    for (const k of (x.kids||[])) {
+    for (const k of vkids(x)) {
       const x1 = x._d*COL + NW, y1 = x._y + NH/2, x2 = k._d*COL, y2 = k._y + NH/2;
       const mx = (x1+x2)/2;
       s += `<path d="M${x1} ${y1} H${mx} V${y2} H${x2-7}" fill="none" stroke="#4a9eff" stroke-width="1.2" marker-end="url(#ar)"/>`;
@@ -411,22 +454,50 @@ function draw(){
       : `${mcn(x.building)} ×${x.count}`;
     else if (x.kind === 'loop') sub = '循环依赖，已截断';
     const dash = (x.kind==='cutoff'||x.kind==='raw') ? 'stroke-dasharray="4 3"' : '';
-    s += `<g class="nd" data-id="${x.item}" style="cursor:pointer">
+    const hasKids = x._d > 0 && !!(x.kids && x.kids.length);
+    const fold = !hasKids ? '' : (x._collapsed
+      ? `<text x="${X+NW-8}" y="${Y+35}" font-size="11" fill="#e3b341" text-anchor="end" class="fold">▸ 含 ${subtreeMachines(x)} 台</text>`
+      : `<text x="${X+NW-8}" y="${Y+35}" font-size="11" fill="#6b7785" text-anchor="end" class="fold">▾ 收起</text>`);
+    s += `<g class="nd" data-id="${x.item}" data-p="${x._p}" style="cursor:pointer">
       <rect x="${X}" y="${Y}" width="${NW}" height="${NH}" rx="8" fill="#161b22" stroke="${col}" stroke-width="1.2" ${dash}/>
       <rect x="${X}" y="${Y}" width="4" height="${NH}" rx="2" fill="${col}"/>
       <text x="${X+10}" y="${Y+18}" font-size="12" fill="#e6edf3">${(cn(x.item)+'').slice(0,11)}</text>
       <text x="${X+10}" y="${Y+35}" font-size="11" fill="#9aa7b4">${sub}</text>
       <text x="${X+NW-8}" y="${Y+18}" font-size="11" fill="#00d2a0" text-anchor="end">${fmt(x.rate)}/s</text>
+      ${fold}
     </g>`;
-    (x.kids||[]).forEach(nodes);
+    vkids(x).forEach(nodes);
   })(ROOT);
   svg.innerHTML = s;
-  svg.querySelectorAll('.nd').forEach(g => g.onclick = () => detail(g.dataset.id));
+  svg.querySelectorAll('.nd').forEach(g => {
+    g.onclick = e => {
+      if (e.target.classList.contains('fold')) { toggleFold(g.dataset.p); return; }
+      detail(g.dataset.id, g.dataset.p);
+    };
+  });
+  svg.querySelectorAll('.fold').forEach(t => t.style.cursor = 'pointer');
+  let foldN = 0, foldM = 0;
+  (function cnt(x){
+    if (x._collapsed) { foldN++; foldM += subtreeMachines(x); return; }
+    vkids(x).forEach(cnt);
+  })(ROOT);
+  $('treeHint').innerHTML = '节点 = 物品，连线上标注每秒流量。点击节点看配方详情。'
+    + '点节点右下角「收起」可折叠该分支（只影响显示，台数照算）。虚线框 = 终止层外购。'
+    + (foldN ? `　<b style="color:#e3b341">已折叠 ${foldN} 处，含 ${foldM} 台设备（仍计入下方统计）</b>` : '');
 }
 
-function detail(id){
+function findNode(path){
+  if (!ROOT || !path) return null;
+  let hit = null;
+  (function w(x){ if (hit) return; if (x._p === path) { hit = x; return; } (x.kids||[]).forEach(w); })(ROOT);
+  return hit;
+}
+function detail(id, path){
   const recs = BY_OUT[id] || [];
   const box = $('mbox');
+  const node = findNode(path);
+  const canFold = !!(node && node._d > 0 && node.kids && node.kids.length);
+  const folded = canFold && COLLAPSED.has(path);
   box.innerHTML = `<h3 style="margin:0 0 8px;font-weight:500">${icHtml(id,30)} ${cn(id)}　<span class="dim">${id}</span></h3>
     <div class="hint">需求 ${fmt(DEM[id]||0)}/s　${(DEM[id]||0)?fmt((DEM[id]||0)*60):0}/min</div>
     ${recs.length?recs.map(r=>{
@@ -436,7 +507,10 @@ function detail(id){
         <div class="hint">${ins} → ${outs}</div>
         <div class="hint">可用设备：${(r.producers||[]).map(mcn).join('、')}</div></div></div>`;
     }).join(''):'<div class="hint">无合成配方（原矿 / 采集物 / 终止层）</div>'}
-    <div class="rowbtns"><button id="close">关闭</button></div>`;
+    <div class="rowbtns">
+      ${canFold ? `<button id="foldbtn">${folded ? '展开此分支' : '折叠此分支'}</button>` : ''}
+      <button id="close">关闭</button></div>`;
+  if (canFold) $('foldbtn').onclick = () => { $('modal').classList.remove('on'); toggleFold(path); };
   $('close').onclick = () => $('modal').classList.remove('on');
   $('modal').classList.add('on');
 }
@@ -455,6 +529,7 @@ function saveState(){
       m_prop: $('m_prop').value, cut: [...CUT],
       m_miner: $('m_miner').value, m_veins: $('m_veins').value, m_vu: $('m_vu').value,
       m_spd: $('m_spd').value,
+      collapsed: [...COLLAPSED],
       chosen: Object.keys(CHOSEN).reduce((o,k)=>{ o[k] = CHOSEN[k] ? CHOSEN[k].id : null; return o; }, {})
     };
     localStorage.setItem(LS_KEY, JSON.stringify(st));
@@ -694,6 +769,19 @@ async function run(){
   try { await runOnce(); } finally { BUSY = false; }
   if (DIRTY) { DIRTY = false; run(); }
 }
+function pyKey(raw){
+  // 拼音首字母查询串: 只留字母数字, 罗马数字已在生成时转成阿拉伯数字
+  const q = (raw||'').toLowerCase().replace(/[\s.·\-_（）()]/g, '');
+  return /^[a-z0-9]+$/.test(q) ? q : '';
+}
+function pyCandidates(raw){
+  // 先精确后前缀; 命中多个时返回全部候选, 让调用方决定是直接算还是列给用户挑
+  const q = pyKey(raw);
+  if (!q || !Object.keys(PY).length) return [];
+  const exact = Object.keys(PY).filter(id => PY[id] === q);
+  if (exact.length) return exact;
+  return Object.keys(PY).filter(id => PY[id].startsWith(q));
+}
 function resolveItem(raw){
   raw = (raw||'').trim();
   if (!raw) return null;
@@ -701,24 +789,32 @@ function resolveItem(raw){
   const all = Object.values(ITEMS);
   const hit = all.find(i => i.name === raw || cn(i.id) === raw);
   if (hit) return hit.id;
+  // 拼音首字母: 纯字母数字输入才走这条路, 中文/混合输入不受影响
+  if (pyKey(raw) && raw.toLowerCase() === pyKey(raw)) {
+    const py = pyCandidates(raw);
+    if (py.length === 1) return py[0];
+    if (py.length > 1) return null;
+  }
   const low = raw.toLowerCase();
   const c = all.filter(i => ('' + cn(i.id)).includes(raw) || (i.name||'').toLowerCase().includes(low));
   return c.length === 1 ? c[0].id : null;
 }
 function similarItems(raw){
-  // 找不到时按字符重合度给近似候选, 兜住"极速/急速"这类同音错字
+  // 找不到时: 纯字母数字先给拼音候选, 再按字符重合度兜"极速/急速"这类错字
   const c = (raw||'').trim();
   if (!c) return [];
+  const py = pyCandidates(c).map(id => cn(id));
   const score = s => {
     const a = {}; let n = 0;
     for (const ch of c) a[ch] = (a[ch]||0) + 1;
     for (const ch of s) if (a[ch]) { a[ch]--; n++; }
     return n / Math.max(c.length, s.length);
   };
-  return Object.values(ITEMS).filter(i => (BY_OUT[i.id]||[]).length)
+  const near = Object.values(ITEMS).filter(i => (BY_OUT[i.id]||[]).length)
     .map(i => [cn(i.id), score(cn(i.id))])
     .filter(x => x[1] >= 0.6).sort((a,b) => b[1]-a[1])
     .slice(0, 4).map(x => x[0]);
+  return [...new Set([...py, ...near])].slice(0, 6);
 }
 async function runOnce(){
   const raw = $('search').value.trim();
@@ -728,10 +824,11 @@ async function runOnce(){
     if (!raw) { showEmpty('请输入要生产的产物，例如「引力矩阵」或「极速传送带」。'); return; }
     const sug = similarItems(raw);
     showEmpty(`找不到「${raw}」。` + (sug.length ? ` 你是要找：${sug.join(' / ')}？` : '')
-      + ' 也可以从搜索框的下拉候选里选。');
+      + ' 也可以从搜索框的下拉候选里选，或直接输拼音首字母（引力矩阵 = yljz）。');
     return;
   }
   $('search').dataset.id = id;
+  if (PY[id] && PY[id] === pyKey(raw)) $('search').value = cn(id);   // 拼音命中后回填中文名
   let r = +$('rate').value || 0;
   if ($('unit').value==='m') r = r/60;
   NODES=[]; BAL={}; DEM={}; SPRAY=0; SPRAYFLOW={}; WARN=[];
@@ -744,8 +841,8 @@ async function runOnce(){
 
 $('go').onclick = run;
 $('reset').onclick = () => {
-  // 清空到初始状态: 目标产物、配方选择、结果、以及保存的存档
-  CHOSEN = {}; LAST = null; ROOT = null;
+  // 清空到初始状态: 目标产物、配方选择、折叠、结果、以及保存的存档
+  CHOSEN = {}; COLLAPSED = new Set(); LAST = null; ROOT = null;
   NODES = []; BAL = {}; DEM = {}; SPRAY = 0; SPRAYFLOW = {}; WARN = [];
   $('search').value = ''; $('search').dataset.id = '';
   saveState();
@@ -760,6 +857,7 @@ $('search').addEventListener('change', run);      // 选好产物即计算，无
 
 const ST = readState();
 if (ST && Array.isArray(ST.cut)) CUT = new Set(ST.cut);
+if (ST && Array.isArray(ST.collapsed)) COLLAPSED = new Set(ST.collapsed);
 fillSelects();
 applyState(ST);
 if (ST && ST.item && ITEMS[ST.item]) {
